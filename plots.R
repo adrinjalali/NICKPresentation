@@ -1,4 +1,4 @@
-means <- c(-1/4, 1/4)
+means <- c(-1/5, 1/5)
 
 x <- seq(-4, 4, length=100)
 hx <- dnorm(x, mean = means[1], sd = 1)
@@ -25,3 +25,12 @@ postscript('random-nodes.eps', width = 1400, height = 600)
 plot(x, hx, type="l", xlab="x value", col = colors[2],
   ylab="Density", main="Random Nodes", xlim=c(-4,4))
 dev.off()
+
+
+plot(x, hx, type="l", xlab="x value", col = colors[2],
+  ylab="Density", main="Gene X", xlim=c(-4,4))
+lines(c(2,2),c(0,dnorm(2)))
+lines(c(-2,-2),c(0,dnorm(-2)))
+
+abline(v=2)
+abline(v=-2)
