@@ -3,7 +3,7 @@
 %
 
 \documentclass{beamer}
-\setbeamertemplate{navigation symbols}{}
+%\setbeamertemplate{navigation symbols}[frame number]
 
 \usepackage{beamerthemeshadow}
 \usepackage[absolute,overlay]{textpos}
@@ -11,13 +11,18 @@
 \usepackage{colortbl}
 \usepackage{xcolor}
 \usepackage[absolute,overlay]{textpos}
+\usepackage{sidecap}
+\usepackage[labelformat=empty]{caption}
+\usepackage{booktabs}
 
 \setbeamercolor{framesource}{fg=gray}
 \setbeamerfont{framesource}{size=\tiny}
+\setbeamertemplate{footline}[frame number]
+\beamertemplatenavigationsymbolsempty
 
 \newcommand{\source}[1]{\begin{textblock*}{4cm}(8.7cm,8.6cm)
     \begin{beamercolorbox}[ht=0.5cm,right]{framesource}
-        \usebeamerfont{framesource}\usebeamercolor[fg]{framesource} credit: {#1}
+        \usebeamerfont{framesource}\usebeamercolor[fg]{framesource} {#1}
     \end{beamercolorbox}
 \end{textblock*}}
 
@@ -33,19 +38,28 @@
 \newcommand{\ghool}{\cellcolor{independentnode}}
 
 \begin{document}
-\title{PPI Networks and Gene Expression}  
-\author{Adrin Jalali}
+\title[Gene Expression, PPI Network, Classification]{Analyzing How Protein Interaction Networks Improve Classification Performance in Gene Expression Data Analysis}
+\author[Adrin Jalali]{Adrin Jalali \\ \small{Supervised by: Nico Pfeifer}}
+\institute{MPI for Informatics}
 \date{\today} 
+\titlegraphic{\includegraphics[width=4cm]{mpi-logo}}
 
 \begin{frame}
 \titlepage
 \end{frame}
 
-%\begin{frame}\frametitle{Table of contents}\tableofcontents
-%\end{frame} 
+\begin{frame}
+  \frametitle{Overview}
+  \begin{enumerate}
+  \item Introduction and data
+  \item Formulate the approach - incorporate PPI-Network in SVM)
+  \item Results
+  \item Work in progress - graph kernels
+  \end{enumerate}
+\end{frame}
 
 \section{Intro}
-\begin{frame}[plain]
+\begin{frame}
   \frametitle{Microarray Gene Expression}
   \begin{columns}
     \begin{column}{0.5\textwidth}
@@ -55,7 +69,7 @@
     \end{column}
     \begin{column}{0.5\textwidth}
       \begin{figure}
-        \includegraphics[width=0.9\textwidth]{Microarray-schema}
+        \includegraphics[width=0.8\textwidth]{Microarray-schema}
       \end{figure}
     \end{column}
   \end{columns}
@@ -63,32 +77,62 @@
   \note{http://en.wikipedia.org/wiki/DNA_microarray}
 \end{frame}
 
-\begin{frame}[plain]
-  \frametitle{Van't Veer breast-cancer data}
-\begin{figure}
-\includegraphics[height=1\textheight]{vantveer-summary}
-\end{figure}
-\mycite{Laura J. van 't Veer et.al. Nature, (2002)}
+\begin{frame}
+  \frametitle{van 't Veer Breast-Cancer Data}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \begin{figure}
+        \includegraphics[width=1\textwidth]{vantveer-summary}
+      \end{figure}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{enumerate}
+      \item Input: Gene expression data
+      \item Output: Prognosis (Poor vs. Good), Metastases
+      \item Goal: Classify and find important genes
+      \item Issue: Hard to classify due to huge number of features (genes) compared to number of samples ($\sim 22000 \gg 98$)
+      \end{enumerate}
+    \end{column}
+  \end{columns}
+  \mycite{Laura J. van 't Veer et.al. Nature, (2002)}
 \note{a, Two-dimensional presentation of transcript ratios for 98 breast tumours. There were 4,968 significant genes across the group. Each row represents a tumour and each column a single gene. As shown in the colour bar, red indicates upregulation, green downregulation, black no change, and grey no data available. The yellow line marks the subdivision into two dominant tumour clusters. b, Selected clinical data for the 98 patients in a: BRCA1 germline mutation carrier (or sporadic patient), ER expression, tumour grade 3 (versus grade 1 and 2), lymphocytic infiltrate, angioinvasion, and metastasis status. White indicates positive, black negative and grey denotes tumours derived from BRCA1 germline carriers who were excluded from the metastasis evaluation. The cluster below the yellow line consists of 36 tumours, of which 34 are ER negative (total 39 ER-negative) and 16 are carriers of the BRCA1 mutation (total 18). c, Enlarged portion from a containing a group of genes that co-regulate with the ER- gene (ESR1). Each gene is labelled by its gene name or accession number from GenBank. Contig ESTs ending with RC are reverse-complementary of the named contig EST. d, Enlarged portion from a containing a group of co-regulated genes that are the molecular reflection of extensive lymphocytic infiltrate, and comprise a set of genes expressed in T and B cells. (Gene annotation as in c.)}
 \note{http://www.nature.com/nature/journal/v415/n6871/full/415530a.html}
 \end{frame}
 
-\begin{frame}[plain]
+\begin{frame}
   \frametitle{Yeast Protein Interaction Network}
 \begin{figure}
-\includegraphics[width=0.8\textwidth]{yeastProteinInteractionNetwork}
+\includegraphics[width=0.6\textwidth]{yeastProteinInteractionNetwork}
+\caption{\tiny The colour of a node indicates the phenotypic effect of removing the corresponding protein ({\color{red}red} = lethal, {\color{green}green} = non-lethal, {\color{orange}orange} = slow growth, {\color{yellow}yellow} = unknown)}
 \end{figure}
-\note{http://www.bordalierinstitute.com/images/yeastProteinInteractionNetwork.jpg}
-\source{http://osf1.gmu.edu/~rcouch/chem665.htm}
+\note{http://www.nature.com/nrg/journal/v5/n2/fig_tab/nrg1272_F2.html}
+\source{A. Barabási, Z. Oltvai, Nature Reviews Genetics, (2004)}
 \end{frame}
 
 
 \section{Formulation} 
 
 \begin{frame}
-\begin{figure}
-\includegraphics[height=1\textheight]{NICK-page1}
-\end{figure}
+  \begin{columns}
+    \begin{column}{0.5\textwidth}
+      \begin{figure}
+        \includegraphics[width=1\textwidth]{NICK-paper}
+      \end{figure}
+    \end{column}
+    \begin{column}{0.5\textwidth}
+      \begin{enumerate}
+      \item It's shown:
+        \begin{itemize}
+        \item Co-expressed genes tend to be close in the PPI-Network.
+        \item Exploit this fact to modify the SVM objective function - called NICK
+        \end{itemize}
+      \item What can be done:
+        \begin{itemize}
+        \item Reverse engineer the learned machine to extract important genes after using the network information.
+        \end{itemize}
+      \end{enumerate}
+    \end{column}
+  \end{columns}
 \end{frame}
 
 
@@ -125,7 +169,8 @@
             &\mathbf{L}\mathbf{L}^T=(\mathbf{I}+\beta \mathbf{B})^{-1}\\
             \text{s.t.: }&\\
             &\forall i \in \{1,\cdots,n\}: \sum_{i=1}^n\alpha_iy_i=0\\
-            &\forall i \in \{1,\cdots,n\}: \alpha_i \geq 0
+            &\forall i \in \{1,\cdots,n\}: \alpha_i \geq 0 \\
+            &\text{Laplacian matrix:}\\  & \mathbf{B} = \mathbf{D} - \mathbf{A}
           \end{align*}
         \end{center}
       \end{block}
@@ -143,37 +188,44 @@
   \note{http://online.liebertpub.com/doi/full/10.1089/cmb.2012.0065}
 \end{frame}
 
-
-\section{Results}
 \begin{frame}
-\frametitle{Synthesize data}
+  \frametitle{Verify What Has To Be Done}
+  \begin{enumerate}
+  \item To be done: extract important genes.
+  \item There is no gold standard for it.
+  \item Synthesized data for the purpose of method verification.
+  \end{enumerate}
+\end{frame}
+
+\begin{frame}
+\frametitle{Synthesize Data}
 \begin{enumerate}
-\item A random graph
-\item Signal nodes: \[ f(n) = \left\{ 
+\item A random graph (PPI-Network)
+\item Signal nodes (genes): \[ f(n) = \left\{ 
   \begin{array}{l l}
     N(-\mu, 1) & \quad \text{if $n$ is in class $1$}\\
     N(\mu, 1) & \quad \text{if $n$ is in class $2$}
   \end{array} \right.\]
-\item Random nodes: \[f(n) = N(0, 1) \]
+\item Random nodes (non-informative genes): \[f(n) = N(0, 1) \]
 \item Pathway: 2, 3, or 4 connected signal nodes.
 \end{enumerate}
 \end{frame}
 
-\begin{frame}[plain]
-  \frametitle{Synthesized data}
+\begin{frame}
+  \frametitle{Synthesized Data}
 \only<1-2>{
   \begin{figure}
     \includegraphics[width=0.8\textwidth]{synthesized}
   \end{figure}
 }
 \only<2-3>{
-  \begin{textblock*}{\paperwidth}(0.4\textwidth,0.8\textheight)
+  \begin{textblock*}{\paperwidth}(0.4\textwidth,0.2\textheight)
     \raggedright
   \begin{figure}
     \includegraphics[angle=270,width=0.2\textwidth]{signal-nodes}
   \end{figure}
   \end{textblock*}
-  \begin{textblock*}{\paperwidth}(-0.4\textwidth,0.8\textheight)
+  \begin{textblock*}{\paperwidth}(-0.4\textwidth,0.2\textheight)
     \raggedright
   \begin{figure}
     \includegraphics[angle=270,width=0.2\textwidth]{random-nodes}
@@ -184,20 +236,40 @@
   \begin{figure}
     \includegraphics[width=0.8\textwidth]{synthesized-easy}
   \end{figure}
+  \begin{textblock*}{\paperwidth}(0.1\textwidth,\textheight)
+    \raggedright
+    \tiny{{\color{blue}Blue}: random gene, {\color{orange}Orange}: Signal node being a member of a pathway of signal nodes, {\color{yellow}Yellow}: A lonely signal node}
+  \end{textblock*}
 }
 \end{frame}
 
-\begin{frame}[plain]
-  \frametitle{Synthesized data easy scenario}
+\begin{frame}
+  \frametitle{Extract Important Genes}
+  \begin{itemize}
+  \item Solve SVM problem for original and transformed data.
+  \item Calculate $\mathbf{w}$ for both models.
+  \item Compute for each pair of nodes, for each model: 
+    \begin{block}{}
+      $Score(i, j) = \frac{|w_i| + |w_j|}{2} \times e^{max\left(d_G(i, j), 1\right)}$
+    \end{block}
+  \item Report pairs with highest scores for both trained models.
+  \end{itemize}
+\end{frame}
+
+\section{Results}
+\begin{frame}
+  \frametitle{Synthesized Data Easy Scenario}
   \begin{figure}
     \includegraphics[width=0.8\textwidth]{synthesized-easy}
   \end{figure}
-  \begin{textblock*}{\paperwidth}(0.01\textwidth,0.15\textheight)
+  \begin{textblock*}{\paperwidth}(0.01\textwidth,0.25\textheight)
     \raggedright 
     \tiny
     \begin{tabular}{| c c |}
       \hline
-AUC: & 60.6 \\ \hline \hline
+\toprule
+\multicolumn{2}{c}{Original} \\ 
+\midrule \hline
 \boz X196   &  \boz X196  \\ \hline
 X53   &  X53  \\ \hline
 X233   &  X233  \\ \hline
@@ -222,21 +294,17 @@ X53   &  X8  \\ \hline
 X53   &  X164  \\ \hline
 X195   &  X195  \\ \hline
 X56   &  X56  \\ \hline
-\boz X113   &  \boz X113  \\ \hline
-X179   &  X179  \\ \hline
-\ghool X96   &  X147  \\ \hline
-\boz X240   &  \boz X240  \\ \hline
-X197   &  X110  \\ \hline
-X197   &  X293  \\ \hline
     \end{tabular}
     \hspace{.5em}
   \end{textblock*}
-  \begin{textblock*}{\paperwidth}(1\textwidth,0.15\textheight)
+  \begin{textblock*}{\paperwidth}(1\textwidth,0.25\textheight)
     \raggedright 
     \tiny
     \begin{tabular}{| c c |}
       \hline
-AUC: & 62.4 \\ \hline \hline
+\toprule
+\multicolumn{2}{c}{Transformed} \\ 
+\midrule \hline
 \boz X196   &  \boz X196  \\ \hline
 X233   &  X233  \\ \hline
 \boz X196   &  \boz X133  \\ \hline
@@ -261,37 +329,35 @@ X298   &  X298  \\ \hline
 X247   &  X247  \\ \hline
 \boz X125   &  \boz X125  \\ \hline
 X83   &  X83  \\ \hline
-\boz X125   &  \boz X82  \\ \hline
-\boz X82   &  \boz X82  \\ \hline
-X160   &  X160  \\ \hline
-X195   &  X195  \\ \hline
-\boz X196   &  \boz X116  \\ \hline
-\boz X82   &  \boz X113  \\ \hline
     \end{tabular}
     \hspace{.5em}
   \end{textblock*}
-  \begin{textblock*}{\paperwidth}(0.4\textwidth,1.1\textheight)
+  \begin{textblock*}{\paperwidth}(0.4\textwidth,1\textheight)
     \raggedright 
     \tiny
     \begin{tabular}{| c c |}
       \hline
+AUC (Original): & 60.6 \\ \hline
+AUC (Transformed): & 62.4 \\ \hline
       wc p-value (paired): & 5.669e-09 \\ \hline
     \end{tabular}
     \hspace{.5em}
   \end{textblock*}
 \end{frame}
 
-\begin{frame}[plain]
-  \frametitle{Synthesized data medium scenario}
+\begin{frame}
+  \frametitle{Synthesized Data Medium Scenario}
   \begin{figure}
     \includegraphics[width=0.8\textwidth]{synthesized-medium}
   \end{figure}
-  \begin{textblock*}{\paperwidth}(0.01\textwidth,0.15\textheight)
+  \begin{textblock*}{\paperwidth}(0.01\textwidth,0.25\textheight)
     \raggedright 
     \tiny
     \begin{tabular}{| c c |}
       \hline
-AUC: & 60.1 \\ \hline \hline
+\toprule
+\multicolumn{2}{c}{Original} \\ 
+\midrule \hline
 \boz X190   &  \boz X190  \\ \hline
 X104   &  X104  \\ \hline
 X233   &  X233  \\ \hline
@@ -316,21 +382,17 @@ X162   &  X162  \\ \hline
 \boz X113   &  \boz X113  \\ \hline
 X112   &  X112  \\ \hline
 X277   &  X102  \\ \hline
-\ghool X96   &  \ghool X96  \\ \hline
-X104   &  X206  \\ \hline
-\ghool X88   &  X207  \\ \hline
-X104   &  X182  \\ \hline
-\ghool X96   &  X132  \\ \hline
-X277   &  X276  \\ \hline
     \end{tabular}
     \hspace{.5em}
   \end{textblock*}
-  \begin{textblock*}{\paperwidth}(1\textwidth,0.15\textheight)
+  \begin{textblock*}{\paperwidth}(1\textwidth,0.25\textheight)
     \raggedright 
     \tiny
     \begin{tabular}{| c c |}
       \hline
-AUC: & 61.5 \\ \hline \hline
+\toprule
+\multicolumn{2}{c}{Transformed} \\ 
+\midrule \hline
 X233   &  X233  \\ \hline
 \boz X190   &  \boz X190  \\ \hline
 X112   &  X112  \\ \hline
@@ -355,37 +417,35 @@ X247   &  X247  \\ \hline
 \boz X82   &  \boz X82  \\ \hline
 X100   &  X100  \\ \hline
 \ghool X257   &  \ghool X257  \\ \hline
-\boz X82   &  \boz X113  \\ \hline
-X28   &  X28  \\ \hline
-\boz X272   &  X205  \\ \hline
-X131   &  X131  \\ \hline
-\boz X113   &  \boz X113  \\ \hline
-X246   &  X161  \\ \hline
     \end{tabular}
     \hspace{.5em}
   \end{textblock*}
-  \begin{textblock*}{\paperwidth}(0.4\textwidth,1.1\textheight)
+  \begin{textblock*}{\paperwidth}(0.4\textwidth,1\textheight)
     \raggedright 
     \tiny
     \begin{tabular}{| c c |}
       \hline
+AUC (Original): & 60.1 \\ \hline
+AUC (Transformed): & 61.5 \\ \hline
       wc p-value (paired): & 1.383e-06 \\ \hline
     \end{tabular}
     \hspace{.5em}
   \end{textblock*}
 \end{frame}
 
-\begin{frame}[plain]
-  \frametitle{Synthesized data hard scenario}
+\begin{frame}
+  \frametitle{Synthesized Data Hard Scenario}
   \begin{figure}
     \includegraphics[width=0.8\textwidth]{synthesized-hard}
   \end{figure}
-  \begin{textblock*}{\paperwidth}(0.01\textwidth,0.15\textheight)
+  \begin{textblock*}{\paperwidth}(0.01\textwidth,0.25\textheight)
     \raggedright 
     \tiny
     \begin{tabular}{| c c |}
       \hline
-AUC: & 60.2 \\ \hline \hline
+\toprule
+\multicolumn{2}{c}{Original} \\ 
+\midrule \hline
 \boz X190   &  \boz X190  \\ \hline
 X101   &  X101  \\ \hline
 X233   &  X233  \\ \hline
@@ -410,21 +470,17 @@ X72   &  X72  \\ \hline
 \ghool X96   &  \ghool X96  \\ \hline
 \boz X148   &  \boz X148  \\ \hline
 X112   &  X112  \\ \hline
-X35   &  X35  \\ \hline
-\ghool X96   &  X132  \\ \hline
-X161   &  X161  \\ \hline
-X155   &  X155  \\ \hline
-X297   &  X251  \\ \hline
-\boz X138   &  X169  \\ \hline
     \end{tabular}
     \hspace{.5em}
   \end{textblock*}
-  \begin{textblock*}{\paperwidth}(1\textwidth,0.15\textheight)
+  \begin{textblock*}{\paperwidth}(1\textwidth,0.25\textheight)
     \raggedright 
     \tiny
     \begin{tabular}{| c c |}
       \hline
-AUC: & 62.5 \\ \hline \hline
+\toprule
+\multicolumn{2}{c}{Transformed} \\ 
+\midrule \hline
 X233   &  X233  \\ \hline
 \boz X190   &  \boz X190  \\ \hline
 X112   &  X112  \\ \hline
@@ -449,34 +505,32 @@ X127   &  \boz X148  \\ \hline
 X155   &  X155  \\ \hline
 X247   &  X247  \\ \hline
 X196   &  X196  \\ \hline
-\boz X148   &  \boz X148  \\ \hline
-X101   &  X101  \\ \hline
-X21   &  X21  \\ \hline
-X106   &  X106  \\ \hline
-X90   &  \boz X228  \\ \hline
-X297   &  X251  \\ \hline
     \end{tabular}
     \hspace{.5em}
   \end{textblock*}
-  \begin{textblock*}{\paperwidth}(0.4\textwidth,1.1\textheight)
+  \begin{textblock*}{\paperwidth}(0.4\textwidth,1\textheight)
     \raggedright 
     \tiny
     \begin{tabular}{| c c |}
       \hline
       wc p-value (paired): & 8.151e-13 \\ \hline
+AUC (Original): & 60.2 \\ \hline
+AUC (Transformed): & 62.5 \\ \hline
     \end{tabular}
     \hspace{.5em}
   \end{textblock*}
 \end{frame}
 
-\begin{frame}[plain]
-  \frametitle{Van't Veer}
+\begin{frame}
+  \frametitle{van 't Veer}
   \begin{textblock*}{\paperwidth}(0.01\textwidth,0.25\textheight)
     \raggedright 
     \tiny
     \begin{tabular}{| c c |}
       \hline
-AUC: & 72.9 \\ \hline \hline
+\toprule
+\multicolumn{2}{c}{Original} \\ 
+\midrule \hline
 X85453  &  X85453 \\ \hline 
 X85453  &  X92140 \\ \hline 
 X6605  &  X6605 \\ \hline 
@@ -505,7 +559,9 @@ X5982  &  X5982 \\ \hline
     \tiny
     \begin{tabular}{| c c |}
       \hline
-AUC: & 73.6 \\ \hline \hline
+\toprule
+\multicolumn{2}{c}{Transformed} \\ 
+\midrule \hline
 X9917  &  X9917 \\ \hline 
 X84279  &  X84279 \\ \hline 
 X197370  &  X197370 \\ \hline 
@@ -529,12 +585,14 @@ X57465  &  X57465 \\ \hline
     \end{tabular}
     \hspace{.5em}
   \end{textblock*}
-  \begin{textblock*}{\paperwidth}(0.4\textwidth,1.1\textheight)
+  \begin{textblock*}{\paperwidth}(0.4\textwidth,1\textheight)
     \raggedright 
     \tiny
     \begin{tabular}{| c c |}
       \hline
       wc p-value (paired): & 0.006 \\ \hline
+AUC (Original): & 72.9 \\ \hline
+AUC (Transformed): & 73.6 \\ \hline
     \end{tabular}
     \hspace{.5em}
   \end{textblock*}
@@ -608,36 +666,99 @@ X57465  &  0 \\ \hline
   \item Estimate gene expression value probability distributions for samples of class A. \pause
   \item For each sample in class A and B:
     \begin{enumerate}
+\scriptsize
     \item Extract abnormal genes according to above estimated distributions.
     \item Extract the part of PPI network induced by extracted genes (almost)
     \end{enumerate}\pause
-  \item Use a graph kernel for labeled graphs to classify extracted graphs. \pause
-  \item Extract common sub-graphs from individual graphs that seem to be helping the classification. \pause
+  \item Use a graph kernel for labeled graphs to classify extracted graphs. 
+%  \item Extract common sub-graphs from individual graphs that seem to be helping the classification. \pause
   \end{enumerate}
-\only<5>{
+\end{frame}
+
+\begin{frame}
+  \frametitle{Graph Kernel}
+  \begin{itemize}
+  \item Random Walks ($A^k$: number of walks of length $k$)
+  \item Sub-Tree Kernels
+  \item Shortest Paths Kernels (1-shortest path, k-shortest paths)
+  \item Graphlet Kernels (Isomorphism proved for $n = k + 1 , n \le 11$)
+  \item Laplacian Matrix - Eigenvalues ($\text{Isomorph} \iff \exists P: B(G_1) = P^tB(G_2)P$), \\ number of connected components = number of $\lambda_i = 0$
+  \end{itemize}
+\end{frame}
+
+\begin{frame}
+  \frametitle{Idea}
+  \begin{enumerate}
+\footnotesize
+  \item Estimate gene expression value probability distributions for samples of class A. 
+  \item For each sample in class A and B:
+    \begin{enumerate}
+\scriptsize
+    \item Extract abnormal genes according to above estimated distributions.
+    \item Extract the part of PPI network induced by extracted genes (almost)
+    \end{enumerate}
+  \item Use a graph kernel for labeled graphs to classify extracted graphs.
+%  \item Extract common sub-graphs from individual graphs that seem to be helping the classification. \pause
+  \end{enumerate}
   \begin{textblock*}{\paperwidth}(0.4\textwidth,0.85\textheight)
     \raggedright
   \begin{figure}
     \includegraphics[angle=270,width=0.2\textwidth]{signal-nodes}
   \end{figure}
   \end{textblock*}
-}
 \end{frame}
 
-\begin{frame}[plain]
-  \frametitle{Weighted idea}
+\begin{frame}
+  \frametitle{Weighted Idea}
 \only<1>{
   \begin{figure}
     \includegraphics[width=1\textwidth]{weighted-1}
     \caption{Class A member}
   \end{figure}
+  \begin{textblock*}{0.2\paperwidth}(0.9\textwidth,0.3\textheight)
+    \raggedright
+\tiny
+{\color{blue}Blue}: Low Expressed\\
+{\color{red}Red}: High Expressed
+  \end{textblock*}
 }
 \only<2>{
   \begin{figure}
     \includegraphics[width=1\textwidth]{weighted-2}
     \caption{Class B member}
   \end{figure}
+  \begin{textblock*}{0.2\paperwidth}(0.9\textwidth,0.3\textheight)
+    \raggedright
+\tiny
+{\color{blue}Blue}: Low Expressed\\
+{\color{red}Red}: High Expressed
+  \end{textblock*}
 }
+\end{frame}
+
+\begin{frame}
+  \frametitle{Next ...}
+  \begin{itemize}
+  \item Same structured graphs for each sample - even same edge weights.
+  \item Most kernels:
+    \begin{itemize}
+    \item Detect structural differences on graphs.
+    \item Assume nodes are not labeled.
+    \end{itemize}
+  \item Design/Find/Change a kernel for our graphs.
+  \item Reverse engineer the kernel on support vectors to detect common substructures on them.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}[plain]
+\frametitle{Acknowledgment}
+\begin{itemize}
+\item Thomas Lengauer
+\item Nico Pfeifer
+\item Sarvesh Nimkubh
+\item Nora Speicher
+\item Anna Feldmann
+\end{itemize}
 \end{frame}
 
 \begin{frame}[plain]
